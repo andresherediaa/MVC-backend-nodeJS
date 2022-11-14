@@ -1,10 +1,12 @@
 import fs from "fs";
 import path from "path";
- 
+import planets from "./planets.schema.js";
 import { parse } from "csv-parse";
- 
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const habitablePlanets = [];
+//const habitablePlanets = [];
 function isHabitablePlanets(planet) {
     return (
         planet["koi_disposition"] === "CONFIRMED" &&
@@ -26,26 +28,41 @@ function loadPlanetsData() {
                     columns: true,
                 })
             )
-            .on("data", (chunk) => {
+            .on("data", async (chunk) => {
                 if (isHabitablePlanets(chunk)) {
-                    habitablePlanets.push(chunk);
+                    await savePlanet(chunk);
                 }
             })
             .on("error", (error) => {
                 reject(error);
             })
-            .on("end", () => {
+            .on("end", async () => {
+                const numberPlanets = (await getAllPlanets()).length;
                 console.log(
-                    habitablePlanets.length,
-                    "habitablePlanets process has been done !!"
+                    "habitablePlanets process has been done !!",
+                    numberPlanets
                 );
                 resolve();
             });
     });
 }
 
-function getAllPlanets() {
-    return habitablePlanets
+async function getAllPlanets() {
+    return await planets.find({}, { __v: 0, _id: 0 });
 }
 
-export { getAllPlanets,  loadPlanetsData };
+async function savePlanet(planet) {
+    await planets.updateOne(
+        {
+            keplerName: planet.kepler_name,
+        },
+        {
+            keplerName: planet.kepler_name,
+        },
+        {
+            upsert: true,
+        }
+    );
+}
+
+export { getAllPlanets, loadPlanetsData };

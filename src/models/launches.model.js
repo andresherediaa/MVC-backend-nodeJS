@@ -1,60 +1,60 @@
-const launches = new Map();
+import launches from "./launches.schema.js";
+import planets from "./planets.schema.js";
 
-const launch = {
-    flightNumber: 0,
-    mission: "kepler exploration",
-    rocket: "Explorer IS1",
-    launchDate: new Date(),
-    target: "Kepler-1652-b",
-    customers: ["ZtM", "others"],
-    upcoming: true,
-    success: true,
-};
-
-const launch2 = {
-    flightNumber: 1,
-    mission: "kepler exploration 1",
-    rocket: "Explorer IS1",
-    launchDate: new Date(),
-    target: "Kepler-1652-b",
-    customers: ["ZtM", "others"],
-    upcoming: true,
-    success: true,
-};
-
-launches.set(launch.flightNumber, launch);
-launches.set(launch2.flightNumber, launch2);
-
-function getAllLaunches() {
-    return Array.from(launches.values());
+const DEFAULT_FLIGHT_NUMBER = 0;
+async function getAllLaunches() {
+    return await launches.find({}, { __v: 0, _id: 0 });
 }
-function updateAllLaunches(launch) {
-    launch.flightNumber = launches.size + 1;
-    launch.upcoming = true;
-    launch.success = false;
-    launches.set(launch.flightNumber, launch);
-}
-
-function existLaunchWithId(id) {
-    return launches.has(id);
-}
-
-function abortLaunchWithId(id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const abort = launches.get(id);
-            abort.upcoming = false;
-            abort.success = false;
-            resolve(abort);
-        } catch (error) {
-            reject(error);
-        }
+async function saveLaunch(launch) {
+    let planetName = await planets.findOne(
+        { keplerName: launch.target },
+        { __v: 0, _id: 0 }
+    );
+    if (!planetName) {
+        throw new Error("Planet isn't avalible in the list");
+    }
+    await launches.findOneAndUpdate({ flightNumber: launch.flightNumber }, launch, {
+        upsert: true,
     });
+}
+
+async function scheduleNewLaunch(launch) {
+    launch.flightNumber =
+        (await getLastestFlightNumber()) || DEFAULT_FLIGHT_NUMBER;
+    launch.upcoming = true;
+    launch.success = true;
+    launch.customers = ["AHA", "NASA"];
+
+    return await saveLaunch(launch);
+}
+
+async function getLastestFlightNumber() {
+    const flightNumber = await launches.findOne().sort({ flightNumber: -1 });
+    return flightNumber ? flightNumber.flightNumber + 1 : flightNumber;
+}
+
+async function existLaunchWithId(id) {
+    return await launches.findOne({
+        flightNumber: id,
+    });
+}
+
+async function abortLaunchWithId(id) {
+    const abortResponse = await launches.updateOne(
+        {
+            flightNumber: id,
+        },
+        {
+            upcoming: false,
+            success: false,
+        }
+    );
+    return abortResponse.modifiedCount==1 && abortResponse.matchedCount==1;
 }
 
 export {
     getAllLaunches,
-    updateAllLaunches,
+    scheduleNewLaunch,
     existLaunchWithId,
     abortLaunchWithId,
 };

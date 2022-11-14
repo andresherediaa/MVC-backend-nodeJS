@@ -5,6 +5,9 @@ import path from "path";
 import morgan from "morgan";
 import fs from "fs";
 import { launchesRouter } from "./routes/launches/launches.router.js";
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 //Express configuration
 const app = express();
